@@ -25,8 +25,8 @@ test test/all: $(TEST_TARGETS)
 $(TEST_TARGETS): test/%: context/% dependencies
 	@echo "Testing [$*]..."
 	@helm lint \
-		--values=${CHART}/values.yaml \
-		--values=${CHART}/values.$*.yaml \
+		--values=$(CHART)/values.yaml \
+		--values=$(CHART)/values.$*.yaml \
 		--set-string=global.env.projectId=$(PROJECT_ID) \
 		--set-string=global.env.repoName=gcloud \
 		--set-string=global.env.branchName=$(BRANCH_NAME) \
@@ -37,15 +37,15 @@ $(TEST_TARGETS): test/%: context/% dependencies
 	@helm upgrade --install \
 		--dry-run \
 		--namespace=$* \
-		--values=${CHART}/values.yaml \
-		--values=${CHART}/values.$*.yaml \
+		--values=$(CHART)/values.yaml \
+		--values=$(CHART)/values.$*.yaml \
 		--set-string=global.env.projectId=$(PROJECT_ID) \
 		--set-string=global.env.repoName=gcloud \
 		--set-string=global.env.branchName=$(BRANCH_NAME) \
 		--set-string=global.env.tagName=$(TAG_NAME) \
 		--set-string=global.env.commitSha=$(COMMIT_SHA) \
 		--set-string=global.env.commitMsg="$(COMMIT_MSG)" \
-		$(RELEASE)-$* ${CHART} $(HIDE_OUTPUT)
+		$(RELEASE)-$* $(CHART) $(HIDE_OUTPUT)
 	@echo "Success!"
 
 deploy/all:
@@ -58,15 +58,15 @@ deploy/all:
 $(DEPLOY_TARGETS): deploy/%: context/% dependencies
 	@helm upgrade --install \
 		--namespace=$* \
-		--values=${CHART}/values.yaml \
-		--values=${CHART}/values.$*.yaml \
+		--values=$(CHART)/values.yaml \
+		--values=$(CHART)/values.$*.yaml \
 		--set-string=global.env.projectId=$(PROJECT_ID) \
 		--set-string=global.env.repoName=gcloud \
 		--set-string=global.env.branchName=$(BRANCH_NAME) \
 		--set-string=global.env.tagName=$(TAG_NAME) \
 		--set-string=global.env.commitSha=$(COMMIT_SHA) \
 		--set-string=global.env.commitMsg="$(COMMIT_MSG)" \
-		$(RELEASE)-$* ${CHART}
+		$(RELEASE)-$* $(CHART)
 
 uninstall uninstall/all: $(UNINSTALL_TARGETS)
 
@@ -75,7 +75,7 @@ $(UNINSTALL_TARGETS): uninstall/%: context/% dependencies
 	@helm uninstall $(RELEASE)-$* -n $*
 
 dependencies:
-	@helm dependency update ${CHART}
+	@helm dependency update $(CHART)
 
 context:
 	@$(CONTEXT_SWITCH_SCRIPT_DIR)/switch_context.sh
