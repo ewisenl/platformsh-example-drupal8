@@ -1,4 +1,5 @@
 CHART ?= ./helmchart
+TARGETS ?= testing staging prod
 PROJECT_ID ?= kuberdrupal
 RELEASE ?= {{REPO_NAME}}
 BRANCH_NAME ?= $(shell git branch --show-current || echo "HEAD")
@@ -8,14 +9,20 @@ COMMIT_MSG ?= $(shell /usr/bin/printf "%q " `git log --pretty=format:'%s' -1`)
 HIDE_OUTPUT ?= > /dev/null
 CONTEXT_SWITCH_SCRIPT_DIR ?= ../scripts/helm
 
+TEST_TARGETS = $(addprefix test/,${TARGETS})
+DEPLOY_TARGETS = $(addprefix deploy/,${TARGETS})
+UNINSTALL_TARGETS = $(addprefix uninstall/,${TARGETS})
+CONTEXT_TARGETS = $(addprefix context/,${TARGETS})
+
+.PHONY: test test/all $(TEST_TARGETS)
+.PHONY: deploy/all $(DEPLOY_TARGETS)
+.PHONY: uninstall uninstall/all $(UNINSTALL_TARGETS)
+.PHONY: context $(CONTEXT_TARGETS)
 .PHONY: dependencies
-.PHONY: test
-.PHONY: deploy uninstall deploy/all uninstall/all
-.PHONY: context
 
-test: test/testing test/staging test/prod
+test test/all: $(TEST_TARGETS)
 
-test/%: context/% dependencies
+$(TEST_TARGETS): test/%: context/% dependencies
 	@echo "Testing [$*]..."
 	@helm lint \
 		--values=${CHART}/values.yaml \
@@ -41,9 +48,14 @@ test/%: context/% dependencies
 		$(RELEASE)-$* ${CHART} $(HIDE_OUTPUT)
 	@echo "Success!"
 
-deploy/all: deploy/testing deploy/staging deploy/prod
+deploy/all:
+	@echo "Please use one of the following commands instead:"
+	@for target in $(TARGETS); do \
+		echo "* make deploy/$$target"; \
+	done
+	@exit 1
 
-deploy/%: context/% dependencies
+$(DEPLOY_TARGETS): deploy/%: context/% dependencies
 	@helm upgrade --install \
 		--namespace=$* \
 		--values=${CHART}/values.yaml \
@@ -56,9 +68,10 @@ deploy/%: context/% dependencies
 		--set-string=global.env.commitMsg="$(COMMIT_MSG)" \
 		$(RELEASE)-$* ${CHART}
 
-uninstall/all: uninstall/testing uninstall/staging uninstall/prod
+uninstall uninstall/all: $(UNINSTALL_TARGETS)
 
-uninstall/%: context/% dependencies
+$(UNINSTALL_TARGETS): uninstall/%: context/% dependencies
+	@echo -n "Are you sure you want to completely remove $(RELEASE) from $*? [y/N] " && read ans && [ $${ans:-N} = y ]
 	@helm uninstall $(RELEASE)-$* -n $*
 
 dependencies:
@@ -66,5 +79,5 @@ dependencies:
 
 context:
 	@$(CONTEXT_SWITCH_SCRIPT_DIR)/switch_context.sh
-context/%:
+$(CONTEXT_TARGETS): context/%:
 	@$(CONTEXT_SWITCH_SCRIPT_DIR)/switch_context.sh $*
