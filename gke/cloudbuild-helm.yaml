@@ -9,6 +9,15 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     entrypoint: 'bash'
     args: ['-c', 'docker pull eu.gcr.io/$PROJECT_ID/$REPO_NAME/${_ENVIRONMENT}:latest || exit 0']
+    id: docker-pull
+    waitFor: ['-']
+
+  - name: 'eu.gcr.io/$PROJECT_ID/helm:latest'
+    entrypoint: 'helm'
+    args:
+      - version
+    id: helm-prefetch
+    waitFor: ['-']
 
   - name: 'gcr.io/cloud-builders/docker'
     args: [
@@ -19,9 +28,13 @@ steps:
         '.'
     ]
     timeout: 500s
+    id: docker-build
+    waitFor: ['docker-pull']
 
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'eu.gcr.io/$PROJECT_ID/$REPO_NAME/${_ENVIRONMENT}:latest']
+    id: docker-push
+    waitFor: ['docker-build']
 
   - name: 'eu.gcr.io/$PROJECT_ID/helm:latest'
     env:
@@ -33,6 +46,9 @@ steps:
     args:
       - make
       - test/${_ENVIRONMENT}
+    id: helm-test
+    waitFor: ['helm-prefetch']
+
   - name: 'eu.gcr.io/$PROJECT_ID/helm:latest'
     env:
       - 'CLOUDSDK_CORE_PROJECT=$PROJECT_ID'
@@ -43,3 +59,5 @@ steps:
     args:
       - make
       - deploy/${_ENVIRONMENT}
+    id: helm-deploy
+    waitFor: ['helm-test', 'docker-push']
